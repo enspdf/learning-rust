@@ -1,0 +1,12 @@
+[package]
+name = "yew-starter"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+yew = "0.19"
+serde = "1.0.144"
+gloo-net = "0.2"
+wasm-bindgen-futures = "0.4"
