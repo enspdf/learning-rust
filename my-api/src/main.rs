@@ -21,7 +21,7 @@ async fn main() -> std::io::Result<()> {
         //     tracing_subscriber::fmt::format::FmtSpan::ENTER
         //         | tracing_subscriber::fmt::format::FmtSpan::CLOSE,
         // )
-        .with_timer(tracing_subscriber::fmt::time::ChronoUtc::rfc3339())
+        .with_timer(tracing_subscriber::fmt::time::UtcTime::rfc_3339())
         .with_env_filter(EnvFilter::from_default_env());
 
     if cfg!(debug_assertions) {

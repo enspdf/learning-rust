@@ -1,10 +1,11 @@
 use actix_web::{
     error::PathError,
-    web::{self, PathConfig, ServiceConfig},
+    web::{self, PathConfig},
     HttpRequest, HttpResponse,
 };
 use tracing::instrument;
 use uuid::Uuid;
+use web::ServiceConfig;
 
 use crate::{repository::Repository, user::User};
 
@@ -59,14 +60,13 @@ fn path_config_handler(err: PathError, _req: &HttpRequest) -> actix_web::Error {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
-    use crate::{
-        repository::MockRepository,
-        user::{CustomData, User},
-    };
+    use crate::user::User;
+    use crate::{repository::MockRepository, user::CustomData};
     use chrono::{NaiveDate, Utc};
 
-    pub fn create_test_user(id: Uuid, name: String, birth_date_ymd: (i32, u32, u32)) -> User {
+    pub fn create_test_user(id: uuid::Uuid, name: String, birth_date_ymd: (i32, u32, u32)) -> User {
         let (year, month, day) = birth_date_ymd;
         User {
             id,
@@ -81,25 +81,21 @@ mod tests {
     #[actix_rt::test]
     async fn get_works() {
         let user_id = uuid::Uuid::new_v4();
-        let user_name = "User Name";
-        let mut repo = MockRepository::default();
+        let user_name = "Mi nombre";
 
+        let mut repo = MockRepository::default();
         repo.expect_get_user().returning(move |id| {
             let user = create_test_user(*id, user_name.to_string(), (1977, 03, 10));
             Ok(user)
         });
 
-        let mut result = get(web::Path::from(user_id), web::Data::new(repo)).await;
+        let result = get(web::Path::from(user_id), web::Data::new(repo)).await;
 
-        let user = result
-            .take_body()
-            .as_ref()
-            .map(|b| match b {
-                actix_web::dev::Body::Bytes(x) => serde_json::from_slice::<'_, User>(x).ok(),
-                _ => None,
-            })
-            .flatten()
-            .unwrap();
+        let user = match result.body() {
+            actix_web::body::AnyBody::Bytes(x) => serde_json::from_slice::<'_, User>(x).ok(),
+            _ => None,
+        }
+        .unwrap();
 
         assert_eq!(user.id, user_id);
         assert_eq!(user.name, user_name);
@@ -108,24 +104,20 @@ mod tests {
     #[actix_rt::test]
     async fn create_works() {
         let user_id = uuid::Uuid::new_v4();
-        let user_name = "User Name";
+        let user_name = "Mi nombre";
         let new_user = create_test_user(user_id, user_name.to_string(), (1977, 03, 10));
+
         let mut repo = MockRepository::default();
-
         repo.expect_create_user()
-            .returning(move |user| Ok(user.to_owned()));
+            .returning(|user| Ok(user.to_owned()));
 
-        let mut result = post(web::Json(new_user), web::Data::new(repo)).await;
+        let result = post(web::Json(new_user), web::Data::new(repo)).await;
 
-        let user = result
-            .take_body()
-            .as_ref()
-            .map(|b| match b {
-                actix_web::dev::Body::Bytes(x) => serde_json::from_slice::<'_, User>(x).ok(),
-                _ => None,
-            })
-            .flatten()
-            .unwrap();
+        let user = match result.body() {
+            actix_web::body::AnyBody::Bytes(x) => serde_json::from_slice::<'_, User>(x).ok(),
+            _ => None,
+        }
+        .unwrap();
 
         assert_eq!(user.id, user_id);
         assert_eq!(user.name, user_name);
@@ -134,24 +126,20 @@ mod tests {
     #[actix_rt::test]
     async fn update_works() {
         let user_id = uuid::Uuid::new_v4();
-        let user_name = "User Name";
+        let user_name = "Mi nombre";
         let new_user = create_test_user(user_id, user_name.to_string(), (1977, 03, 10));
+
         let mut repo = MockRepository::default();
-
         repo.expect_update_user()
-            .returning(move |user| Ok(user.to_owned()));
+            .returning(|user| Ok(user.to_owned()));
 
-        let mut result = put(web::Json(new_user), web::Data::new(repo)).await;
+        let result = put(web::Json(new_user), web::Data::new(repo)).await;
 
-        let user = result
-            .take_body()
-            .as_ref()
-            .map(|b| match b {
-                actix_web::dev::Body::Bytes(x) => serde_json::from_slice::<'_, User>(x).ok(),
-                _ => None,
-            })
-            .flatten()
-            .unwrap();
+        let user = match result.body() {
+            actix_web::body::AnyBody::Bytes(x) => serde_json::from_slice::<'_, User>(x).ok(),
+            _ => None,
+        }
+        .unwrap();
 
         assert_eq!(user.id, user_id);
         assert_eq!(user.name, user_name);
@@ -160,22 +148,17 @@ mod tests {
     #[actix_rt::test]
     async fn delete_works() {
         let user_id = uuid::Uuid::new_v4();
+
         let mut repo = MockRepository::default();
+        repo.expect_delete_user().returning(|id| Ok(id.to_owned()));
 
-        repo.expect_delete_user()
-            .returning(move |id| Ok(id.to_owned()));
+        let result = delete(web::Path::from(user_id), web::Data::new(repo)).await;
 
-        let mut result = delete(web::Path::from(user_id), web::Data::new(repo)).await;
-        let result = result.take_body();
-
-        let id = result
-            .as_ref()
-            .map(|b| match b {
-                actix_web::dev::Body::Bytes(x) => std::str::from_utf8(x).ok(),
-                _ => None,
-            })
-            .flatten()
-            .unwrap();
+        let id = match result.body() {
+            actix_web::body::AnyBody::Bytes(x) => std::str::from_utf8(x).ok(),
+            _ => None,
+        }
+        .unwrap();
 
         assert_eq!(id, user_id.to_string());
     }

@@ -13,9 +13,9 @@ pub enum RepositoryError {
     LockError(String),
     #[error("This entity already exists")]
     AlreadyExists,
-    #[error("This does not entity exists")]
+    #[error("This entity does not exist")]
     DoesNotExist,
-    #[error("This id format is not valid")]
+    #[error("The id format is not valid")]
     InvalidId,
 }
 
@@ -70,9 +70,9 @@ impl Repository for PostgresRepository {
     async fn create_user(&self, user: &User) -> RepositoryResult<User> {
         let result = sqlx::query_as::<_, User>(
             r#"
-            INSERT INTO users (id, name, birth_date, custom_data)
-            VALUES ($1, $2, $3, $4)
-            RETURNING id, name, birth_date, created_at, updated_at
+                INSERT INTO users (id, name, birth_date, custom_data)
+                VALUES ($1, $2, $3, $4)
+                RETURNING id, name, birth_date, custom_data, created_at, updated_at
             "#,
         )
         .bind(&user.id)
@@ -92,10 +92,10 @@ impl Repository for PostgresRepository {
     async fn update_user(&self, user: &User) -> RepositoryResult<User> {
         let result = sqlx::query_as::<_, User>(
             r#"
-            UPDATE users
-            SET custom_data = $1, updated_at = $2
-            WHERE id = $3
-            RETURNING id, name, birth_date, created_at, updated_at
+                UPDATE users
+                SET custom_data = $1, updated_at = $2
+                WHERE id = $3
+                RETURNING id, name, birth_date, custom_data, created_at, updated_at
             "#,
         )
         .bind(&user.custom_data)
@@ -111,19 +111,19 @@ impl Repository for PostgresRepository {
     }
 
     #[instrument(skip(self))]
-    async fn delete_user(&self, user_id: &uuid::Uuid) -> RepositoryResult<Uuid> {
+    async fn delete_user(&self, user_id: &Uuid) -> RepositoryResult<Uuid> {
         let result = sqlx::query_as::<_, User>(
             r#"
             DELETE FROM users
             WHERE id = $1
-            RETURNING id, name, birth_date, created_at, updated_at
-            "#,
+            RETURNING id, name, birth_date, custom_data, created_at, updated_at
+        "#,
         )
         .bind(user_id)
         .fetch_one(&self.pool)
         .await;
 
-        result.map(|e| e.id).map_err(|e| {
+        result.map(|u| u.id).map_err(|e| {
             tracing::error!("{:?}", e);
             RepositoryError::DoesNotExist
         })
